@@ -1,0 +1,47 @@
+### Project Tutwiler - Scoring API Endpoints
+@baseUrl = http://localhost:5239
+
+### 1. Get BioImpactScore for a specific vulnerability (replace {id} with actual vulnerability ID)
+GET {{baseUrl}}/api/scoring/vulnerability/1
+Accept: application/json
+
+### 2. Get priority level distribution
+GET {{baseUrl}}/api/scoring/distribution
+Accept: application/json
+
+### 3. Get top 10 critical vulnerabilities (default)
+GET {{baseUrl}}/api/scoring/top-critical
+Accept: application/json
+
+### 4. Get top 20 critical vulnerabilities (custom limit)
+GET {{baseUrl}}/api/scoring/top-critical?limit=20
+Accept: application/json
+
+### 5. Get top 5 critical vulnerabilities
+GET {{baseUrl}}/api/scoring/top-critical?limit=5
+Accept: application/json
+
+### 6. Get scoring statistics summary
+GET {{baseUrl}}/api/scoring/stats
+Accept: application/json
+
+###
+### EXISTING ENDPOINTS FOR TESTING WORKFLOW
+###
+
+### 7. Ingest vulnerabilities (prerequisite for analysis)
+POST {{baseUrl}}/api/ingestion/full?daysBack=3
+Content-Type: application/json
+
+### 8. Get ingestion stats
+GET {{baseUrl}}/api/ingestion/stats
+Accept: application/json
+
+### 9. Run batch analysis (this will create BioImpactScores)
+POST {{baseUrl}}/api/analysis/batch?limit=10
+Content-Type: application/json
+
+### 10. Get analysis stats
+GET {{baseUrl}}/api/analysis/stats
+Accept: application/json
+

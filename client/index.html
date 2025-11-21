@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Project Tutwiler | Cyberbiosecurity Vulnerability Triage</title>
+    <link rel="stylesheet" href="resources/styles/main.css">
+</head>
+<body>
+    <!-- Scanline overlay effect -->
+    <div class="scanline-overlay"></div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="nav-icon">◢</span>
+                <h1>PROJECT TUTWILER</h1>
+                <span class="nav-subtitle">CYBERBIOSECURITY THREAT INTELLIGENCE</span>
+            </div>
+            <div class="nav-status">
+                <span class="status-indicator" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    SYSTEM ONLINE
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container main-content">
+        <!-- Metrics Cards Section -->
+        <section class="metrics-section">
+            <div class="metric-card critical">
+                <div class="metric-header">
+                    <span class="metric-icon">⚠</span>
+                    <span class="metric-label">CRITICAL</span>
+                </div>
+                <div class="metric-value" id="criticalCount">--</div>
+                <div class="metric-footer">Immediate Action Required</div>
+            </div>
+
+            <div class="metric-card high">
+                <div class="metric-header">
+                    <span class="metric-icon">▲</span>
+                    <span class="metric-label">HIGH</span>
+                </div>
+                <div class="metric-value" id="highCount">--</div>
+                <div class="metric-footer">Priority Threats</div>
+            </div>
+
+            <div class="metric-card medium">
+                <div class="metric-header">
+                    <span class="metric-icon">◆</span>
+                    <span class="metric-label">MEDIUM</span>
+                </div>
+                <div class="metric-value" id="mediumCount">--</div>
+                <div class="metric-footer">Scheduled Review</div>
+            </div>
+
+            <div class="metric-card low">
+                <div class="metric-header">
+                    <span class="metric-icon">●</span>
+                    <span class="metric-label">LOW</span>
+                </div>
+                <div class="metric-value" id="lowCount">--</div>
+                <div class="metric-footer">Monitoring Only</div>
+            </div>
+        </section>
+
+        <!-- Additional Stats Row -->
+        <section class="stats-row">
+            <div class="stat-item">
+                <span class="stat-label">Total Vulnerabilities:</span>
+                <span class="stat-value" id="totalCount">--</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Known Exploited:</span>
+                <span class="stat-value exploited" id="exploitedCount">--</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Last Ingestion:</span>
+                <span class="stat-value" id="lastIngestion">--</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Analyzed:</span>
+                <span class="stat-value" id="analyzedCount">--</span>
+            </div>
+        </section>
+
+        <!-- Filters Row -->
+        <section class="filters-section">
+            <div class="filter-group">
+                <label for="priorityFilter">PRIORITY FILTER:</label>
+                <select id="priorityFilter" class="filter-select">
+                    <option value="">All Priorities</option>
+                    <option value="CRITICAL">Critical</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="timeFilter">TIME RANGE:</label>
+                <select id="timeFilter" class="filter-select">
+                    <option value="">All Time</option>
+                    <option value="1">Last 24 Hours</option>
+                    <option value="7">Last 7 Days</option>
+                    <option value="30">Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+
+            <div class="filter-group search-group">
+                <label for="searchInput">SEARCH:</label>
+                <input type="text" id="searchInput" class="filter-input" placeholder="CVE ID or keywords...">
+            </div>
+
+            <button id="refreshBtn" class="btn-refresh">
+                <span class="btn-icon">↻</span>
+                REFRESH
+            </button>
+        </section>
+
+        <!-- Main Content: 2-Column Layout -->
+        <section class="content-layout">
+            <!-- Left Column: Vulnerability List -->
+            <div class="vulnerability-list-container">
+                <div class="section-header">
+                    <h2>VULNERABILITY DATABASE</h2>
+                    <span class="result-count" id="resultCount">Loading...</span>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="loadingIndicator" class="loading-state">
+                    <div class="loading-spinner"></div>
+                    <p>ACCESSING DATABASE...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="errorState" class="error-state" style="display: none;">
+                    <div class="error-icon">✕</div>
+                    <p class="error-message" id="errorMessage">CONNECTION FAILED</p>
+                    <button id="retryBtn" class="btn-retry">RETRY CONNECTION</button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <div class="empty-icon">◯</div>
+                    <p>NO VULNERABILITIES FOUND</p>
+                    <p class="empty-subtitle">Adjust filters or refresh data</p>
+                </div>
+
+                <!-- Vulnerability Cards -->
+                <div id="vulnerabilityList" class="vulnerability-list">
+                    <!-- Cards will be dynamically inserted here -->
+                </div>
+
+                <!-- Pagination -->
+                <div id="paginationControls" class="pagination-controls" style="display: none;">
+                    <button id="prevPageBtn" class="btn-page">◀ PREVIOUS</button>
+                    <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                    <button id="nextPageBtn" class="btn-page">NEXT ▶</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Detail Panel -->
+            <div class="detail-panel-container">
+                <div class="detail-panel" id="detailPanel">
+                    <div class="detail-header">
+                        <h3>VULNERABILITY ANALYSIS</h3>
+                    </div>
+                    <div class="detail-placeholder">
+                        <div class="placeholder-icon">◈</div>
+                        <p>SELECT A VULNERABILITY</p>
+                        <p class="placeholder-subtitle">Click any card to view detailed analysis</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Project Tutwiler | Cyberbiosecurity Research Initiative</p>
+            <p class="footer-links">
+                <a href="http://localhost:5239/swagger" target="_blank">API Documentation</a> | 
+                <a href="http://localhost:5239/hangfire" target="_blank">Job Dashboard</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="resources/scripts/main.js"></script>
+</body>
+</html>
+

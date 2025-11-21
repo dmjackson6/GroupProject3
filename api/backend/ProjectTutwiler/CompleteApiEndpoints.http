@@ -1,0 +1,244 @@
+### Project Tutwiler - Complete API Documentation
+@baseUrl = http://localhost:5239
+
+###############################################
+### SWAGGER/OPENAPI DOCUMENTATION
+###############################################
+
+### Open Swagger UI in browser
+# http://localhost:5239/swagger
+
+###############################################
+### 1. VULNERABILITIES ENDPOINTS
+###############################################
+
+### 1.1 Get all vulnerabilities (paginated)
+GET {{baseUrl}}/api/vulnerabilities?skip=0&take=20
+Accept: application/json
+
+### 1.2 Get vulnerabilities filtered by CRITICAL priority
+GET {{baseUrl}}/api/vulnerabilities?priorityLevel=CRITICAL&skip=0&take=20
+Accept: application/json
+
+### 1.3 Get vulnerabilities from last 7 days
+GET {{baseUrl}}/api/vulnerabilities?daysBack=7&skip=0&take=20
+Accept: application/json
+
+### 1.4 Get vulnerabilities with combined filters
+GET {{baseUrl}}/api/vulnerabilities?priorityLevel=HIGH&daysBack=14&skip=0&take=50
+Accept: application/json
+
+### 1.5 Get single vulnerability by ID
+GET {{baseUrl}}/api/vulnerabilities/1
+Accept: application/json
+
+### 1.6 Get comprehensive dashboard statistics
+GET {{baseUrl}}/api/vulnerabilities/stats
+Accept: application/json
+
+### 1.7 Search vulnerabilities by CVE ID or text
+GET {{baseUrl}}/api/vulnerabilities/search?query=CVE-2024&limit=20
+Accept: application/json
+
+### 1.8 Search by description text
+GET {{baseUrl}}/api/vulnerabilities/search?query=medical%20device
+Accept: application/json
+
+### 1.9 Get vulnerabilities by vendor
+GET {{baseUrl}}/api/vulnerabilities/by-vendor/microsoft?limit=50
+Accept: application/json
+
+###############################################
+### 2. INGESTION ENDPOINTS
+###############################################
+
+### 2.1 Run full ingestion (NVD + CISA KEV)
+POST {{baseUrl}}/api/ingestion/full?daysBack=3
+Content-Type: application/json
+
+### 2.2 Get ingestion statistics
+GET {{baseUrl}}/api/ingestion/stats
+Accept: application/json
+
+### 2.3 Test database connection
+GET {{baseUrl}}/api/health/db-test
+Accept: application/json
+
+###############################################
+### 3. ANALYSIS ENDPOINTS
+###############################################
+
+### 3.1 Analyze specific vulnerability
+POST {{baseUrl}}/api/analysis/vulnerability/1
+Content-Type: application/json
+
+### 3.2 Run batch analysis (up to specified limit)
+POST {{baseUrl}}/api/analysis/batch?limit=10
+Content-Type: application/json
+
+### 3.3 Get analysis statistics
+GET {{baseUrl}}/api/analysis/stats
+Accept: application/json
+
+###############################################
+### 4. SCORING ENDPOINTS
+###############################################
+
+### 4.1 Get BioImpactScore for vulnerability
+GET {{baseUrl}}/api/scoring/vulnerability/1
+Accept: application/json
+
+### 4.2 Get priority level distribution
+GET {{baseUrl}}/api/scoring/distribution
+Accept: application/json
+
+### 4.3 Get top critical vulnerabilities
+GET {{baseUrl}}/api/scoring/top-critical?limit=10
+Accept: application/json
+
+### 4.4 Get scoring statistics
+GET {{baseUrl}}/api/scoring/stats
+Accept: application/json
+
+###############################################
+### 5. RECOMMENDATIONS ENDPOINTS
+###############################################
+
+### 5.1 Generate recommendations for vulnerability
+POST {{baseUrl}}/api/recommendations/generate/1
+Content-Type: application/json
+
+### 5.2 Get recommendations for vulnerability
+GET {{baseUrl}}/api/recommendations/vulnerability/1
+Accept: application/json
+
+### 5.3 Get recommendation summary with full details
+GET {{baseUrl}}/api/recommendations/summary/1
+Accept: application/json
+
+### 5.4 Get recommendation statistics
+GET {{baseUrl}}/api/recommendations/stats
+Accept: application/json
+
+###############################################
+### 6. HANGFIRE BACKGROUND JOBS
+###############################################
+
+### 6.1 Get dashboard URL
+GET {{baseUrl}}/api/jobs/dashboard-url
+Accept: application/json
+
+### 6.2 Get recurring jobs information
+GET {{baseUrl}}/api/jobs/recurring-jobs
+Accept: application/json
+
+### 6.3 Manually trigger ingestion
+POST {{baseUrl}}/api/jobs/trigger-ingestion?daysBack=7
+Content-Type: application/json
+
+### 6.4 Manually trigger processing
+POST {{baseUrl}}/api/jobs/trigger-processing
+Content-Type: application/json
+
+### 6.5 Analyze specific vulnerability via job queue
+POST {{baseUrl}}/api/jobs/analyze-vulnerability/1
+Content-Type: application/json
+
+###############################################
+### COMPLETE WORKFLOW EXAMPLES
+###############################################
+
+### WORKFLOW 1: Initial Setup & Data Population
+# Step 1: Trigger ingestion to populate database
+POST {{baseUrl}}/api/jobs/trigger-ingestion?daysBack=7
+
+# Step 2: Check ingestion completed
+GET {{baseUrl}}/api/ingestion/stats
+
+# Step 3: Trigger analysis processing
+POST {{baseUrl}}/api/jobs/trigger-processing
+
+# Step 4: View dashboard stats
+GET {{baseUrl}}/api/vulnerabilities/stats
+
+###
+
+### WORKFLOW 2: View Critical Vulnerabilities
+# Step 1: Get top critical vulnerabilities
+GET {{baseUrl}}/api/scoring/top-critical?limit=5
+
+# Step 2: Get full details for a critical vulnerability
+GET {{baseUrl}}/api/vulnerabilities/1
+
+# Step 3: Generate recommendations
+POST {{baseUrl}}/api/recommendations/generate/1
+
+# Step 4: View recommendation summary
+GET {{baseUrl}}/api/recommendations/summary/1
+
+###
+
+### WORKFLOW 3: Search & Filter
+# Step 1: Search for specific CVE
+GET {{baseUrl}}/api/vulnerabilities/search?query=CVE-2024-1234
+
+# Step 2: Filter by priority and timeframe
+GET {{baseUrl}}/api/vulnerabilities?priorityLevel=HIGH&daysBack=30&skip=0&take=20
+
+# Step 3: Get vulnerabilities by vendor
+GET {{baseUrl}}/api/vulnerabilities/by-vendor/cisco?limit=50
+
+###
+
+### WORKFLOW 4: Monitor System Health
+# Step 1: Get dashboard statistics
+GET {{baseUrl}}/api/vulnerabilities/stats
+
+# Step 2: Get scoring distribution
+GET {{baseUrl}}/api/scoring/distribution
+
+# Step 3: Get analysis stats
+GET {{baseUrl}}/api/analysis/stats
+
+# Step 4: Check background job status
+GET {{baseUrl}}/api/jobs/recurring-jobs
+
+###
+
+### WORKFLOW 5: Process Specific Vulnerability
+# Step 1: Search for vulnerability
+GET {{baseUrl}}/api/vulnerabilities/search?query=medical
+
+# Step 2: Get full details
+GET {{baseUrl}}/api/vulnerabilities/1
+
+# Step 3: Analyze if not analyzed
+POST {{baseUrl}}/api/analysis/vulnerability/1
+
+# Step 4: Get scoring details
+GET {{baseUrl}}/api/scoring/vulnerability/1
+
+# Step 5: Generate recommendations
+POST {{baseUrl}}/api/recommendations/generate/1
+
+# Step 6: View summary
+GET {{baseUrl}}/api/recommendations/summary/1
+
+###############################################
+### PRIORITY LEVEL ENUM VALUES
+###############################################
+# Use these values for priorityLevel query parameter:
+# - CRITICAL
+# - HIGH
+# - MEDIUM
+# - LOW
+
+###############################################
+### PAGINATION BEST PRACTICES
+###############################################
+# Default: skip=0, take=50
+# Maximum take: 100
+# Calculate page: currentPage = (skip / take) + 1
+# Example page 2 with 20 items: skip=20, take=20
+# Example page 3 with 50 items: skip=100, take=50
+

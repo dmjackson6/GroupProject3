@@ -1,0 +1,99 @@
+### Project Tutwiler - Hangfire Background Jobs API
+@baseUrl = http://localhost:5239
+
+###############################################
+### HANGFIRE DASHBOARD
+###############################################
+
+### 1. Get Hangfire Dashboard URL
+GET {{baseUrl}}/api/jobs/dashboard-url
+Accept: application/json
+
+# After getting the URL, open it in your browser:
+# http://localhost:5239/hangfire
+
+###############################################
+### MANUAL JOB TRIGGERS
+###############################################
+
+### 2. Manually trigger vulnerability ingestion (default 7 days back)
+POST {{baseUrl}}/api/jobs/trigger-ingestion
+Content-Type: application/json
+
+### 3. Manually trigger vulnerability ingestion (custom days back)
+POST {{baseUrl}}/api/jobs/trigger-ingestion?daysBack=14
+Content-Type: application/json
+
+### 4. Manually trigger vulnerability processing/analysis
+POST {{baseUrl}}/api/jobs/trigger-processing
+Content-Type: application/json
+
+### 5. Analyze a specific vulnerability immediately (replace {id})
+POST {{baseUrl}}/api/jobs/analyze-vulnerability/1
+Content-Type: application/json
+
+###############################################
+### JOB STATUS & MONITORING
+###############################################
+
+### 6. Get recurring jobs information
+GET {{baseUrl}}/api/jobs/recurring-jobs
+Accept: application/json
+
+###############################################
+### COMPLETE WORKFLOW TEST
+###############################################
+
+### Step 1: Check dashboard URL
+GET {{baseUrl}}/api/jobs/dashboard-url
+Accept: application/json
+
+### Step 2: View recurring jobs configuration
+GET {{baseUrl}}/api/jobs/recurring-jobs
+Accept: application/json
+
+### Step 3: Manually trigger ingestion to populate database
+POST {{baseUrl}}/api/jobs/trigger-ingestion?daysBack=3
+Content-Type: application/json
+
+### Step 4: Wait ~30 seconds, then check ingestion stats
+GET {{baseUrl}}/api/ingestion/stats
+Accept: application/json
+
+### Step 5: Manually trigger processing to analyze vulnerabilities
+POST {{baseUrl}}/api/jobs/trigger-processing
+Content-Type: application/json
+
+### Step 6: Check analysis stats (may take a few minutes)
+GET {{baseUrl}}/api/analysis/stats
+Accept: application/json
+
+### Step 7: View top critical vulnerabilities
+GET {{baseUrl}}/api/scoring/top-critical?limit=5
+Accept: application/json
+
+### Step 8: Generate recommendations for a vulnerability
+POST {{baseUrl}}/api/recommendations/generate/1
+Content-Type: application/json
+
+###############################################
+### NOTES
+###############################################
+
+# Hangfire Dashboard Features:
+# - View all jobs (Succeeded, Failed, Processing, Scheduled)
+# - View recurring jobs schedule and next execution time
+# - Manually trigger or delete jobs
+# - View detailed job execution logs
+# - Monitor server performance
+
+# Scheduled Jobs:
+# 1. ingest-vulnerabilities: Runs every 12 hours (0 */12 * * *)
+#    - Ingests vulnerabilities from NVD and CISA KEV
+#    - Looks back 7 days
+#
+# 2. process-vulnerabilities: Runs every 30 minutes (*/30 * * * *)
+#    - Processes up to 50 unanalyzed vulnerabilities
+#    - Prioritizes: Known Exploited → High CVSS → Recent
+#    - Includes 1-second delay between analyses
+

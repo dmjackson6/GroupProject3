@@ -1,0 +1,6 @@
+@ProjectTutwiler_HostAddress = http://localhost:5239
+
+GET {{ProjectTutwiler_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

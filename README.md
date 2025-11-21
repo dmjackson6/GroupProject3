@@ -2,18 +2,60 @@
 
 ## Quick Start
 
-### Option 1: Open Directly (Development Testing)
-Simply open `client/index.html` in your browser to test the frontend (API calls will need the backend running).
+### Prerequisites
+- **.NET 9.0 SDK** - [Download here](https://dotnet.microsoft.com/download/dotnet/9.0)
+- **MySQL 8.0+** - Already configured with remote database (AWS RDS)
+- **Ollama** - [Download here](https://ollama.ai/download)
+  - Required for AI bio-impact analysis
+  - After installing, run: `ollama pull llama3.1:8b`
 
-### Option 2: Serve via Backend (Recommended)
-The backend is configured to serve this client folder automatically:
+### Step 1: Clone Repository
+```bash
+git clone <repository-url>
+cd GroupProject3
+```
 
-```Open terminal
+### Step 2: Restore Dependencies
+```bash
 cd api\backend\ProjectTutwiler
+dotnet restore
+```
+
+### Step 3: Database Setup
+The connection string is pre-configured in `appsettings.json` (AWS RDS). Apply migrations:
+```bash
+dotnet ef database update
+```
+*If migrations folder doesn't exist, you may need to create initial migration first*
+
+### Step 4: Start Ollama (Required for AI Analysis)
+In a separate terminal:
+```bash
+ollama serve
+```
+Ensure it's running on `http://localhost:11434` (default port)
+
+### Step 5: Run Application
+```bash
 dotnet run
 ```
 
-Then navigate to: **`http://localhost:5239`**
+### Step 6: Access Application
+- **Frontend Dashboard**: `http://localhost:5239`
+- **Swagger API Docs**: `http://localhost:5239/swagger`
+- **Hangfire Jobs Dashboard**: `http://localhost:5239/hangfire`
+
+### Step 7: Ingest Vulnerability Data
+Use Swagger UI or trigger via Hangfire dashboard:
+1. Navigate to `http://localhost:5239/swagger`
+2. Execute `POST /api/ingestion/run-ingestion` to fetch CVE data
+3. Execute `POST /api/jobs/process-vulnerabilities` to run AI analysis
+4. Refresh dashboard to see vulnerabilities
+
+---
+
+### Quick Development Testing (Frontend Only)
+You can open `client/index.html` directly in a browser for UI testing, but API calls require the backend running.
 
 ---
 

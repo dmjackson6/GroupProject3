@@ -990,3 +990,57 @@ h1, h2, h3 {
 .text-low { color: var(--low-green); }
 .text-cyan { color: var(--primary-cyan); }
 
+/* === ANALYZE BUTTON === */
+.analyze-btn {
+    width: 100%;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, var(--primary-cyan), var(--accent-cyan));
+    border: 2px solid var(--primary-cyan);
+    border-radius: 6px;
+    color: var(--dark-bg);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.analyze-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.6);
+    background: linear-gradient(135deg, var(--accent-cyan), var(--primary-cyan));
+}
+
+.analyze-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.analyze-btn .btn-icon {
+    font-size: 18px;
+}
+
+/* === SPINNER ANIMATION === */
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 217, 255, 0.3);
+    border-top-color: var(--primary-cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.8; }
+}
+

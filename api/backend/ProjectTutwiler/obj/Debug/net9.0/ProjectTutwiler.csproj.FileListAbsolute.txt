@@ -149,3 +149,4 @@ C:\Users\dylan\Documents\Source Fall 2025\GroupProject3\api\backend\ProjectTutwi
 C:\Users\dylan\Documents\Source Fall 2025\GroupProject3\api\backend\ProjectTutwiler\obj\Debug\net9.0\ProjectTutwiler.pdb
 C:\Users\dylan\Documents\Source Fall 2025\GroupProject3\api\backend\ProjectTutwiler\obj\Debug\net9.0\ProjectTutwiler.genruntimeconfig.cache
 C:\Users\dylan\Documents\Source Fall 2025\GroupProject3\api\backend\ProjectTutwiler\obj\Debug\net9.0\ref\ProjectTutwiler.dll
+C:\Users\dylan\Documents\Source Fall 2025\GroupProject3\api\backend\ProjectTutwiler\bin\Debug\net9.0\appsettings.Example.json

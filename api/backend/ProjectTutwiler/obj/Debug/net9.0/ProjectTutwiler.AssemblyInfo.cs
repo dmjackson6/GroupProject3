@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProjectTutwiler")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+968a7719bbb25040123ebba16a6d38bb8c5077dd")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cf37e85c984ee6a480274205b223c9efc7766284")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProjectTutwiler")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProjectTutwiler")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

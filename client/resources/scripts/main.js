@@ -308,18 +308,30 @@ class DashboardApp {
     /**
      * Select vulnerability and load details
      */
-    async selectVulnerability(vulnId) {
+    async selectVulnerability(vulnId, skipCache = false) {
         // Update selected card
         document.querySelectorAll('.vulnerability-card').forEach(card => {
             card.classList.remove('selected');
         });
-        document.querySelector(`[data-vuln-id="${vulnId}"]`).classList.add('selected');
+        const selectedCard = document.querySelector(`[data-vuln-id="${vulnId}"]`);
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+        }
 
         this.selectedVulnerabilityId = vulnId;
 
         // Fetch full details
         try {
-            const response = await fetch(`${this.API_BASE}/vulnerabilities/${vulnId}`);
+            // Add cache busting if needed
+            const url = skipCache 
+                ? `${this.API_BASE}/vulnerabilities/${vulnId}?t=${Date.now()}`
+                : `${this.API_BASE}/vulnerabilities/${vulnId}`;
+            
+            const response = await fetch(url, {
+                cache: skipCache ? 'no-cache' : 'default',
+                headers: skipCache ? { 'Cache-Control': 'no-cache' } : {}
+            });
+            
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
             const vuln = await response.json();
@@ -458,6 +470,17 @@ class DashboardApp {
                             ⚠ Not yet analyzed
                         </span>
                     </div>
+                    <div class="detail-field" style="margin-top: 15px;">
+                        <button id="analyzeBtn" class="analyze-btn" onclick="app.triggerAnalysis(${vuln.id})">
+                            <span class="btn-icon">🔬</span> ANALYZE NOW
+                        </button>
+                    </div>
+                    <div id="analysisProgress" style="display: none; margin-top: 15px;">
+                        <div style="display: flex; align-items: center; gap: 10px; color: var(--cyber-cyan);">
+                            <div class="spinner"></div>
+                            <span id="analysisStatus">Running AI analysis...</span>
+                        </div>
+                    </div>
                 </div>
             `;
         }
@@ -590,6 +613,103 @@ class DashboardApp {
     }
 
     /**
+     * Trigger AI analysis for a vulnerability
+     */
+    async triggerAnalysis(vulnId) {
+        console.log(`🔬 Triggering analysis for vulnerability ID ${vulnId}`);
+        
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const progressDiv = document.getElementById('analysisProgress');
+        const statusSpan = document.getElementById('analysisStatus');
+
+        try {
+            // Disable button and show progress
+            if (analyzeBtn) {
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '<span class="btn-icon">⏳</span> ANALYZING...';
+            }
+            if (progressDiv) {
+                progressDiv.style.display = 'block';
+            }
+
+            // Step 1: Run AI analysis and scoring
+            if (statusSpan) statusSpan.textContent = 'Running AI bio-relevance analysis...';
+            
+            const analysisResponse = await fetch(`${this.API_BASE}/analysis/vulnerability/${vulnId}`, {
+                method: 'POST'
+            });
+
+            if (!analysisResponse.ok) {
+                const errorData = await analysisResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || `Analysis failed with status ${analysisResponse.status}`);
+            }
+
+            const analysisResult = await analysisResponse.json();
+            console.log('✅ Analysis completed:', analysisResult);
+
+            // Step 2: Generate recommendations
+            if (statusSpan) statusSpan.textContent = 'Generating actionable recommendations...';
+            
+            try {
+                const recsResponse = await fetch(`${this.API_BASE}/recommendations/generate/${vulnId}`, {
+                    method: 'POST'
+                });
+
+                if (recsResponse.ok) {
+                    const recsResult = await recsResponse.json();
+                    console.log('✅ Recommendations generated:', recsResult);
+                } else {
+                    console.warn('Recommendations generation failed, but analysis succeeded');
+                }
+            } catch (recError) {
+                console.warn('Recommendations request failed:', recError);
+            }
+
+            // Wait for database to commit (longer delay)
+            if (statusSpan) statusSpan.textContent = 'Saving to database...';
+            await new Promise(resolve => setTimeout(resolve, 1500));
+
+            // Step 3: Refresh stats and list FIRST
+            if (statusSpan) statusSpan.textContent = 'Updating dashboard...';
+            
+            await Promise.all([
+                this.fetchStats().catch(e => console.warn('Stats refresh failed:', e)),
+                this.fetchVulnerabilities().catch(e => console.warn('List refresh failed:', e))
+            ]);
+
+            // Small delay before refreshing detail panel
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Step 4: Refresh the detail panel to show new data (force no cache)
+            if (statusSpan) statusSpan.textContent = 'Loading analysis results...';
+            await this.selectVulnerability(vulnId, true).catch(e => {
+                console.warn('Detail refresh failed:', e);
+            });
+
+            console.log('🎉 Analysis complete!');
+
+        } catch (error) {
+            console.error('Error during analysis:', error);
+            
+            // Show error in the progress area
+            if (progressDiv && statusSpan) {
+                statusSpan.innerHTML = `<span style="color: var(--critical-red);">❌ Error: ${error.message}</span>`;
+                
+                // Re-enable button after error
+                setTimeout(() => {
+                    if (analyzeBtn) {
+                        analyzeBtn.disabled = false;
+                        analyzeBtn.innerHTML = '<span class="btn-icon">🔬</span> ANALYZE NOW';
+                    }
+                    if (progressDiv) {
+                        progressDiv.style.display = 'none';
+                    }
+                }, 3000);
+            }
+        }
+    }
+
+    /**
      * Format date to human-readable string
      */
     formatDate(dateString) {
@@ -633,8 +753,9 @@ class DashboardApp {
 }
 
 // Initialize dashboard when DOM is ready
+let app; // Global app instance
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new DashboardApp();
+    app = new DashboardApp();
     app.init();
 });
 

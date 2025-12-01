@@ -20,6 +20,10 @@
                 <span class="nav-subtitle">CYBERBIOSECURITY THREAT INTELLIGENCE</span>
             </div>
             <div class="nav-status">
+                <button id="helpBtn" class="btn-help" title="Help & Information">
+                    <span class="help-icon">?</span>
+                    HELP
+                </button>
                 <span class="status-indicator" id="connectionStatus">
                     <span class="status-dot"></span>
                     SYSTEM ONLINE
@@ -89,6 +93,14 @@
             </div>
         </section>
 
+        <!-- Batch Analysis Progress -->
+        <div id="batchProgress" class="batch-progress" style="display: none;">
+            <div class="batch-progress-content">
+                <div class="spinner"></div>
+                <span id="batchProgressMessage">Analyzing all vulnerabilities, this will take a few minutes...</span>
+            </div>
+        </div>
+
         <!-- Filters Row -->
         <section class="filters-section">
             <div class="filter-group">
@@ -121,6 +133,10 @@
             <button id="refreshBtn" class="btn-refresh">
                 <span class="btn-icon">↻</span>
                 REFRESH
+            </button>
+            <button id="analyzeAllBtn" class="btn-refresh" style="background: linear-gradient(135deg, var(--high-orange), var(--medium-yellow));">
+                <span class="btn-icon">🔬</span>
+                ANALYZE ALL
             </button>
         </section>
 
@@ -180,6 +196,90 @@
                 </div>
             </div>
         </section>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="help-modal" style="display: none;">
+        <div class="help-modal-content">
+            <div class="help-modal-header">
+                <h2>PROJECT TUTWILER - HELP & INFORMATION</h2>
+                <button id="closeHelpBtn" class="help-close-btn">×</button>
+            </div>
+            <div class="help-modal-body">
+                <div class="help-section">
+                    <h3>About Project Tutwiler</h3>
+                    <p>Project Tutwiler is a <strong>Cyberbiosecurity Vulnerability Triage System</strong> designed to help security professionals identify and prioritize vulnerabilities that could impact biological systems, healthcare infrastructure, pharmaceutical manufacturing, agricultural systems, and other biosecurity-critical sectors.</p>
+                    <p>The system automatically:</p>
+                    <ul>
+                        <li>Fetches vulnerability data from the National Vulnerability Database (NVD) and CISA's Known Exploited Vulnerabilities (KEV) catalog</li>
+                        <li>Uses AI to analyze each vulnerability for biological/biosecurity relevance</li>
+                        <li>Scores vulnerabilities across multiple dimensions (Human Safety, Supply Chain, Exploitability, Patch Availability)</li>
+                        <li>Generates actionable recommendations for addressing threats</li>
+                    </ul>
+                </div>
+
+                <div class="help-section">
+                    <h3>Priority Levels Explained</h3>
+                    <div class="priority-explanation">
+                        <div class="priority-item critical">
+                            <span class="priority-badge">CRITICAL</span>
+                            <p><strong>Composite Score: 70-100</strong></p>
+                            <p>Immediate action required. These vulnerabilities pose severe risks to biological systems, human safety, or critical infrastructure. They may affect medical devices, pharmaceutical systems, or agricultural technology with potential for widespread harm.</p>
+                        </div>
+                        <div class="priority-item high">
+                            <span class="priority-badge">HIGH</span>
+                            <p><strong>Composite Score: 55-69</strong></p>
+                            <p>High priority threats that require prompt attention. These vulnerabilities could significantly impact biosecurity operations, supply chains, or safety-critical systems. Address within days to weeks.</p>
+                        </div>
+                        <div class="priority-item medium">
+                            <span class="priority-badge">MEDIUM</span>
+                            <p><strong>Composite Score: 35-54</strong></p>
+                            <p>Moderate risk vulnerabilities that should be scheduled for review. They may affect biological systems but with limited scope or impact. Plan remediation within weeks to months.</p>
+                        </div>
+                        <div class="priority-item low">
+                            <span class="priority-badge">LOW</span>
+                            <p><strong>Composite Score: 0-34</strong></p>
+                            <p>Low priority vulnerabilities with minimal biosecurity impact. These are typically monitored but don't require immediate action. Review as part of regular maintenance cycles.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <h3>What Does "EXPLOITED" Mean?</h3>
+                    <p>A vulnerability marked as <strong class="text-critical">EXPLOITED</strong> means that:</p>
+                    <ul>
+                        <li>The vulnerability has been <strong>actively used in real-world attacks</strong></li>
+                        <li>It appears in CISA's Known Exploited Vulnerabilities (KEV) catalog</li>
+                        <li>There is evidence of malicious actors exploiting this vulnerability</li>
+                        <li><strong>Immediate patching or mitigation is strongly recommended</strong></li>
+                    </ul>
+                    <p>Exploited vulnerabilities are prioritized higher in the analysis queue and should be addressed urgently, even if their composite score is lower.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>Understanding Scores</h3>
+                    <p>Each vulnerability receives scores from 0-100 in four key dimensions:</p>
+                    <ul>
+                        <li><strong>Human Safety Score:</strong> Potential impact on human health and safety (medical devices, patient data, etc.)</li>
+                        <li><strong>Supply Chain Score:</strong> Impact on biological supply chains (pharmaceutical manufacturing, food production, etc.)</li>
+                        <li><strong>Exploitability Score:</strong> How easily the vulnerability can be exploited by attackers</li>
+                        <li><strong>Patch Availability Score:</strong> Availability and ease of applying fixes or mitigations</li>
+                    </ul>
+                    <p>These scores are combined into a <strong>Composite Score</strong> that determines the overall priority level.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>How to Use the Dashboard</h3>
+                    <ol>
+                        <li><strong>View Statistics:</strong> Check the metric cards at the top for an overview of vulnerabilities by priority</li>
+                        <li><strong>Filter Results:</strong> Use the priority filter, time range, or search box to find specific vulnerabilities</li>
+                        <li><strong>Select a Vulnerability:</strong> Click any vulnerability card to see detailed analysis in the right panel</li>
+                        <li><strong>Analyze Unanalyzed Items:</strong> Click "ANALYZE NOW" on unanalyzed vulnerabilities to run AI analysis</li>
+                        <li><strong>Review Recommendations:</strong> Check the action recommendations section for specific steps to address threats</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Footer -->

@@ -1,4 +1,5 @@
 using ProjectTutwiler.Data;
+using ProjectTutwiler.Services.Deduplication;
 
 namespace ProjectTutwiler.Services.DataIngestion;
 
@@ -6,15 +7,18 @@ public class IngestionOrchestrator
 {
     private readonly VulnerabilityIngestionService _ingestionService;
     private readonly IVulnerabilityRepository _repository;
+    private readonly VulnerabilityDeduplicationService _deduplicationService;
     private readonly ILogger<IngestionOrchestrator> _logger;
 
     public IngestionOrchestrator(
         VulnerabilityIngestionService ingestionService,
         IVulnerabilityRepository repository,
+        VulnerabilityDeduplicationService deduplicationService,
         ILogger<IngestionOrchestrator> logger)
     {
         _ingestionService = ingestionService;
         _repository = repository;
+        _deduplicationService = deduplicationService;
         _logger = logger;
     }
 
@@ -38,13 +42,19 @@ public class IngestionOrchestrator
             _logger.LogInformation("Step 2: Running CISA KEV ingestion");
             combinedResult.KevResults = await _ingestionService.IngestFromCisaKevAsync();
 
-            // Step 4: Get database statistics
+            // Step 4: Run deduplication to merge any duplicates from multiple sources
+            _logger.LogInformation("Step 3: Running deduplication");
+            var dedupResult = await _deduplicationService.DeduplicateByCveIdAsync();
+            _logger.LogInformation("Deduplication: {Merged} groups merged, {Removed} duplicates removed",
+                dedupResult.Merged, dedupResult.Removed);
+
+            // Step 5: Get database statistics
             var allVulns = await _repository.GetAllAsync(skip: 0, take: 10000);
             combinedResult.TotalVulnerabilities = allVulns.Count;
             combinedResult.TotalKnownExploited = await _repository.CountKnownExploitedAsync();
 
             combinedResult.CompletedAt = DateTime.UtcNow;
-            combinedResult.Message = $"Full ingestion completed. NVD: {combinedResult.NvdResults.NewAdded} new, KEV: {combinedResult.KevResults.NewAdded} new, {combinedResult.KevResults.DuplicatesSkipped} marked exploited";
+            combinedResult.Message = $"Full ingestion completed. NVD: {combinedResult.NvdResults.NewAdded} new, KEV: {combinedResult.KevResults.NewAdded} new, {combinedResult.KevResults.DuplicatesSkipped} marked exploited. Deduplication: {dedupResult.Removed} duplicates removed";
 
             _logger.LogInformation(combinedResult.Message);
             _logger.LogInformation("Total vulnerabilities in database: {Total}, Known exploited: {Exploited}",

@@ -85,18 +85,23 @@ public class CompositeScorer
 
     private PriorityLevel DeterminePriorityLevel(decimal compositeScore)
     {
-        if (compositeScore >= 85)
+        // Adjusted thresholds to better reflect realistic scoring scenarios
+        // CRITICAL: Very high human safety impact + high exploitability + critical sectors
+        if (compositeScore >= 70)
         {
             return PriorityLevel.CRITICAL;
         }
-        else if (compositeScore >= 70)
+        // HIGH: Significant bio-relevance with multiple high-risk factors
+        else if (compositeScore >= 55)
         {
             return PriorityLevel.HIGH;
         }
-        else if (compositeScore >= 50)
+        // MEDIUM: Moderate bio-relevance or limited impact
+        else if (compositeScore >= 35)
         {
             return PriorityLevel.MEDIUM;
         }
+        // LOW: Minimal bio-relevance or low-risk factors
         else
         {
             return PriorityLevel.LOW;

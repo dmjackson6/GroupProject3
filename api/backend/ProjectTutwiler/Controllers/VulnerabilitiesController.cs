@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ProjectTutwiler.Data;
 using ProjectTutwiler.DTOs;
 using ProjectTutwiler.Models.Enums;
+using MySqlConnector;
 
 namespace ProjectTutwiler.Controllers;
 
@@ -58,11 +59,12 @@ public class VulnerabilitiesController : ControllerBase
             var totalCount = await query.CountAsync();
 
             // Apply pagination and ordering
+            // Order by composite score (nulls last), then by other criteria
             var vulnerabilities = await query
-                .OrderByDescending(v => v.BioImpactScore != null ? v.BioImpactScore.CompositeScore : 0)
+                .OrderByDescending(v => v.BioImpactScore != null ? (decimal?)v.BioImpactScore.CompositeScore : null)
                 .ThenByDescending(v => v.KnownExploited)
-                .ThenByDescending(v => v.CvssScore)
-                .ThenByDescending(v => v.PublishedDate)
+                .ThenByDescending(v => v.CvssScore ?? 0)
+                .ThenByDescending(v => v.PublishedDate ?? DateTime.MinValue)
                 .Skip(skip)
                 .Take(take)
                 .ToListAsync();
@@ -84,10 +86,23 @@ public class VulnerabilitiesController : ControllerBase
                 Data = dtoList
             });
         }
+        catch (MySqlException mysqlEx) when (mysqlEx.Message.Contains("max_questions"))
+        {
+            _logger.LogError(mysqlEx, "Database query limit exceeded. Please wait for the limit to reset.");
+            return StatusCode(503, new { 
+                message = "Database query limit exceeded. Please try again in a few minutes.",
+                error = "Service temporarily unavailable due to database limits"
+            });
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving vulnerabilities");
-            return StatusCode(500, new { message = "Internal server error" });
+            _logger.LogError(ex, "Error retrieving vulnerabilities. Skip: {Skip}, Take: {Take}, Exception: {ExceptionType}, Message: {Message}", 
+                skip, take, ex.GetType().Name, ex.Message);
+            return StatusCode(500, new { 
+                message = "Internal server error",
+                error = ex.Message,
+                details = ex.GetType().Name
+            });
         }
     }
 
@@ -129,13 +144,17 @@ public class VulnerabilitiesController : ControllerBase
         {
             var stats = new DashboardStatsDto();
 
-            // Overall counts
-            stats.TotalVulnerabilities = await _context.Vulnerabilities.CountAsync();
-            stats.AnalyzedVulnerabilities = await _context.BioImpactScores.CountAsync();
+            // Optimize: Get multiple counts in parallel to reduce query time
+            var totalTask = _context.Vulnerabilities.CountAsync();
+            var analyzedTask = _context.BioImpactScores.CountAsync();
+            var exploitedTask = _context.Vulnerabilities.Where(v => v.KnownExploited).CountAsync();
+            
+            await Task.WhenAll(totalTask, analyzedTask, exploitedTask);
+            
+            stats.TotalVulnerabilities = await totalTask;
+            stats.AnalyzedVulnerabilities = await analyzedTask;
             stats.UnanalyzedVulnerabilities = stats.TotalVulnerabilities - stats.AnalyzedVulnerabilities;
-            stats.KnownExploitedCount = await _context.Vulnerabilities
-                .Where(v => v.KnownExploited)
-                .CountAsync();
+            stats.KnownExploitedCount = await exploitedTask;
 
             // Priority breakdown
             var priorityCounts = await _context.BioImpactScores
@@ -162,21 +181,27 @@ public class VulnerabilitiesController : ControllerBase
                 }
             }
 
-            // Recent activity
-            var latestVulnerability = await _context.Vulnerabilities
+            // Recent activity - optimize with parallel queries
+            var latestTask = _context.Vulnerabilities
                 .OrderByDescending(v => v.CreatedAt)
+                .Select(v => v.CreatedAt)
                 .FirstOrDefaultAsync();
-            stats.LastIngestionTime = latestVulnerability?.CreatedAt;
-
+            
             var twentyFourHoursAgo = DateTime.UtcNow.AddHours(-24);
-            stats.VulnerabilitiesLast24Hours = await _context.Vulnerabilities
+            var last24HoursTask = _context.Vulnerabilities
                 .Where(v => v.CreatedAt >= twentyFourHoursAgo)
                 .CountAsync();
 
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
-            stats.VulnerabilitiesLast7Days = await _context.Vulnerabilities
+            var last7DaysTask = _context.Vulnerabilities
                 .Where(v => v.CreatedAt >= sevenDaysAgo)
                 .CountAsync();
+            
+            await Task.WhenAll(latestTask, last24HoursTask, last7DaysTask);
+            
+            stats.LastIngestionTime = await latestTask;
+            stats.VulnerabilitiesLast24Hours = await last24HoursTask;
+            stats.VulnerabilitiesLast7Days = await last7DaysTask;
 
             // CVSS distribution
             var cvssDistribution = await _context.Vulnerabilities
@@ -212,15 +237,29 @@ public class VulnerabilitiesController : ControllerBase
             }
 
             // Average composite score
-            var avgScore = await _context.BioImpactScores.AverageAsync(b => (double?)b.CompositeScore);
+            var avgScoreTask = _context.BioImpactScores.AverageAsync(b => (double?)b.CompositeScore);
+            var avgScore = await avgScoreTask;
             stats.AverageCompositeScore = avgScore.HasValue ? (decimal)Math.Round(avgScore.Value, 2) : 0;
 
             return Ok(stats);
         }
+        catch (MySqlConnector.MySqlException mysqlEx) when (mysqlEx.Message.Contains("max_questions"))
+        {
+            _logger.LogError(mysqlEx, "Database query limit exceeded. Please wait for the limit to reset.");
+            return StatusCode(503, new { 
+                message = "Database query limit exceeded. Please try again in a few minutes.",
+                error = "Service temporarily unavailable due to database limits"
+            });
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving vulnerability statistics");
-            return StatusCode(500, new { message = "Internal server error" });
+            _logger.LogError(ex, "Error retrieving vulnerability statistics. Exception: {ExceptionType}, Message: {Message}", 
+                ex.GetType().Name, ex.Message);
+            return StatusCode(500, new { 
+                message = "Internal server error",
+                error = ex.Message,
+                details = ex.GetType().Name
+            });
         }
     }
 

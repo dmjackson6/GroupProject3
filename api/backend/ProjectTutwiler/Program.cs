@@ -25,6 +25,8 @@ builder.Services.AddScoped<IVulnerabilityRepository, VulnerabilityRepository>();
 // Register data ingestion services
 builder.Services.AddHttpClient<ProjectTutwiler.Services.DataIngestion.NvdApiClient>();
 builder.Services.AddHttpClient<ProjectTutwiler.Services.DataIngestion.CisaKevClient>();
+builder.Services.AddHttpClient<ProjectTutwiler.Services.DataIngestion.VendorAdvisoryClient>();
+builder.Services.AddHttpClient<ProjectTutwiler.Services.DataIngestion.CertCsirtClient>();
 builder.Services.AddScoped<ProjectTutwiler.Services.DataIngestion.VulnerabilityIngestionService>();
 builder.Services.AddScoped<ProjectTutwiler.Services.DataIngestion.IngestionOrchestrator>();
 
@@ -45,6 +47,10 @@ builder.Services.AddScoped<ProjectTutwiler.Services.Scoring.CompositeScorer>();
 // Register recommendation services
 builder.Services.AddScoped<ProjectTutwiler.Services.Recommendations.RecommendationService>();
 
+// Register deduplication and validation services
+builder.Services.AddScoped<ProjectTutwiler.Services.Deduplication.VulnerabilityDeduplicationService>();
+builder.Services.AddScoped<ProjectTutwiler.Services.Validation.SourceValidationService>();
+
 // Add memory cache for KEV caching
 builder.Services.AddMemoryCache();
 
@@ -64,6 +70,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Configure Hangfire for background job processing
+// TEMPORARILY DISABLED due to database query limit - uncomment when limit resets
+/*
 builder.Services.AddHangfire(config =>
     config.UseStorage(new MySqlStorage(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -80,6 +88,7 @@ builder.Services.AddHangfireServer(options =>
     options.WorkerCount = 2; 
     options.ServerName = "ProjectTutwiler-Server";
 });
+*/
 
 // Add Controllers
 builder.Services.AddControllers();
@@ -105,7 +114,8 @@ app.UseHttpsRedirection();
 app.UseCors();
 
 // Enable Hangfire Dashboard for job monitoring
-app.UseHangfireDashboard("/hangfire");
+// TEMPORARILY DISABLED due to database query limit
+// app.UseHangfireDashboard("/hangfire");
 
 app.MapControllers();
 
@@ -145,7 +155,16 @@ app.MapGet("/weatherforecast", () =>
 .WithName("GetWeatherForecast");
 
 // Configure recurring background jobs
-JobScheduler.ConfigureRecurringJobs(app.Services);
+// TEMPORARILY DISABLED due to database query limit
+// try
+// {
+//     JobScheduler.ConfigureRecurringJobs(app.Services);
+// }
+// catch (Exception ex)
+// {
+//     var logger = app.Services.GetRequiredService<ILogger<Program>>();
+//     logger.LogWarning(ex, "Could not configure recurring jobs. Hangfire may not be available due to database limits.");
+// }
 
 app.Run();
 

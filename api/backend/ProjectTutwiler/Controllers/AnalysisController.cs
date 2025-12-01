@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ProjectTutwiler.Data;
 using ProjectTutwiler.Services.AI;
 using ProjectTutwiler.Services.AI.DTOs;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ProjectTutwiler.Controllers;
 
@@ -13,6 +15,7 @@ public class AnalysisController : ControllerBase
     private readonly BioImpactAnalyzer _bioAnalyzer;
     private readonly IVulnerabilityRepository _repository;
     private readonly ApplicationDbContext _context;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<AnalysisController> _logger;
 
     public AnalysisController(
@@ -20,12 +23,14 @@ public class AnalysisController : ControllerBase
         BioImpactAnalyzer bioAnalyzer,
         IVulnerabilityRepository repository,
         ApplicationDbContext context,
+        IServiceProvider serviceProvider,
         ILogger<AnalysisController> logger)
     {
         _analysisService = analysisService;
         _bioAnalyzer = bioAnalyzer;
         _repository = repository;
         _context = context;
+        _serviceProvider = serviceProvider;
         _logger = logger;
     }
 
@@ -63,7 +68,196 @@ public class AnalysisController : ControllerBase
     }
 
     /// <summary>
-    /// Analyze multiple unanalyzed vulnerabilities in batch
+    /// Analyze ALL unanalyzed vulnerabilities in parallel (batch processing)
+    /// </summary>
+    /// <param name="maxConcurrency">Maximum concurrent analyses (default: 5, max: 10)</param>
+    /// <returns>Batch analysis results with progress</returns>
+    [HttpPost("analyze-all")]
+    public async Task<ActionResult<object>> AnalyzeAll([FromQuery] int maxConcurrency = 5)
+    {
+        try
+        {
+            if (maxConcurrency < 1 || maxConcurrency > 10)
+            {
+                return BadRequest(new { error = "maxConcurrency must be between 1 and 10" });
+            }
+
+            _logger.LogInformation("Starting batch analysis for ALL unanalyzed vulnerabilities (max concurrency: {Concurrency})", maxConcurrency);
+
+            // Find all vulnerabilities without BioImpactScores, prioritize by known exploited and CVSS
+            var unanalyzed = await _context.Vulnerabilities
+                .Where(v => v.BioImpactScore == null)
+                .OrderByDescending(v => v.KnownExploited) // Prioritize exploited
+                .ThenByDescending(v => v.CvssScore) // Then by severity
+                .ThenByDescending(v => v.CreatedAt) // Then by recency
+                .Select(v => v.Id)
+                .ToListAsync();
+
+            if (unanalyzed.Count == 0)
+            {
+                return Ok(new
+                {
+                    message = "No unanalyzed vulnerabilities found",
+                    totalCount = 0,
+                    processed = 0,
+                    successCount = 0,
+                    failureCount = 0,
+                    results = new List<object>()
+                });
+            }
+
+            _logger.LogInformation("Found {Count} unanalyzed vulnerabilities to process", unanalyzed.Count);
+
+            // Get CVE IDs before parallel processing to avoid DbContext thread-safety issues
+            var cveIdMap = await _context.Vulnerabilities
+                .Where(v => unanalyzed.Contains(v.Id))
+                .ToDictionaryAsync(v => v.Id, v => v.CveId);
+
+            var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+            var results = new List<object>();
+            int successCount = 0;
+            int failureCount = 0;
+            var tasks = new List<Task>();
+
+            foreach (var vulnerabilityId in unanalyzed)
+            {
+                await semaphore.WaitAsync();
+                tasks.Add(Task.Run(async () =>
+                {
+                    // Create a new scope for this task to get thread-safe services
+                    using var scope = _serviceProvider.CreateScope();
+                    var scopedAnalysisService = scope.ServiceProvider.GetRequiredService<VulnerabilityAnalysisService>();
+                    
+                    try
+                    {
+                        var analysis = await scopedAnalysisService.AnalyzeAndScoreVulnerabilityAsync(vulnerabilityId);
+                        
+                        var cveId = cveIdMap.GetValueOrDefault(vulnerabilityId, "Unknown");
+                        lock (results)
+                        {
+                            results.Add(new
+                            {
+                                vulnerabilityId = vulnerabilityId,
+                                cveId = cveId,
+                                compositeScore = analysis?.CompositeScore,
+                                priorityLevel = analysis?.PriorityLevel.ToString(),
+                                status = "success"
+                            });
+                            successCount++;
+                        }
+                        
+                        _logger.LogDebug("Successfully analyzed vulnerability ID {Id} ({CveId})", vulnerabilityId, cveId);
+                    }
+                    catch (Exception ex)
+                    {
+                        var cveId = cveIdMap.GetValueOrDefault(vulnerabilityId, "Unknown");
+                        _logger.LogError(ex, "Failed to analyze {CveId}", cveId);
+                        
+                        lock (results)
+                        {
+                            results.Add(new
+                            {
+                                vulnerabilityId = vulnerabilityId,
+                                cveId = cveId,
+                                status = "failed",
+                                error = ex.Message
+                            });
+                            failureCount++;
+                        }
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                }));
+            }
+
+            // Wait for all tasks to complete
+            // Use a very long timeout (60 minutes) to handle large batches
+            var timeoutTask = Task.Delay(TimeSpan.FromMinutes(60));
+            var completedTask = await Task.WhenAny(Task.WhenAll(tasks), timeoutTask);
+            
+            if (completedTask == timeoutTask)
+            {
+                _logger.LogWarning("Batch analysis timed out after 60 minutes. {Success} succeeded, {Failure} failed out of {Total}",
+                    successCount, failureCount, unanalyzed.Count);
+                
+                return Ok(new
+                {
+                    message = $"Batch analysis timed out after 60 minutes. {successCount} succeeded, {failureCount} failed. Some may still be processing.",
+                    totalCount = unanalyzed.Count,
+                    processed = successCount + failureCount,
+                    successCount,
+                    failureCount,
+                    timedOut = true,
+                    // Don't order results - just return them as-is to avoid issues with missing properties
+                    results = results.ToList(),
+                    timestamp = DateTime.UtcNow
+                });
+            }
+
+            // Verify all were processed
+            var processedCount = successCount + failureCount;
+            var processedIds = results.Select(r => (int)((dynamic)r).vulnerabilityId).ToHashSet();
+            var missingIds = unanalyzed.Where(id => !processedIds.Contains(id)).ToList();
+            
+            if (processedCount < unanalyzed.Count)
+            {
+                _logger.LogWarning("Not all vulnerabilities were processed. Expected {Expected}, got {Processed}. Missing {Missing} IDs",
+                    unanalyzed.Count, processedCount, missingIds.Count);
+                
+                // Try to process missing ones (they might have been analyzed by another process)
+                foreach (var missingId in missingIds)
+                {
+                    try
+                    {
+                        using var scope = _serviceProvider.CreateScope();
+                        var scopedContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var alreadyAnalyzed = await scopedContext.BioImpactScores
+                            .AnyAsync(b => b.VulnerabilityId == missingId);
+                        
+                        if (!alreadyAnalyzed)
+                        {
+                            _logger.LogWarning("Vulnerability ID {Id} was not processed and is not analyzed", missingId);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error checking missing vulnerability ID {Id}", missingId);
+                    }
+                }
+            }
+
+            _logger.LogInformation("Batch analysis completed: {Success} succeeded, {Failure} failed out of {Total}",
+                successCount, failureCount, unanalyzed.Count);
+
+            return Ok(new
+            {
+                message = $"Batch analysis completed: {successCount} succeeded, {failureCount} failed out of {unanalyzed.Count} total",
+                totalCount = unanalyzed.Count,
+                processed = processedCount,
+                successCount,
+                failureCount,
+                timedOut = false,
+                // Don't order results - just return them as-is to avoid issues with missing properties
+                results = results.ToList(),
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during batch analysis");
+            return StatusCode(500, new
+            {
+                error = "Batch analysis failed",
+                message = ex.Message,
+                timestamp = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Analyze multiple unanalyzed vulnerabilities in batch (limited)
     /// </summary>
     /// <param name="limit">Maximum number of vulnerabilities to analyze (default: 10, max: 50)</param>
     /// <returns>Batch analysis results</returns>

@@ -144,17 +144,11 @@ public class VulnerabilitiesController : ControllerBase
         {
             var stats = new DashboardStatsDto();
 
-            // Optimize: Get multiple counts in parallel to reduce query time
-            var totalTask = _context.Vulnerabilities.CountAsync();
-            var analyzedTask = _context.BioImpactScores.CountAsync();
-            var exploitedTask = _context.Vulnerabilities.Where(v => v.KnownExploited).CountAsync();
-            
-            await Task.WhenAll(totalTask, analyzedTask, exploitedTask);
-            
-            stats.TotalVulnerabilities = await totalTask;
-            stats.AnalyzedVulnerabilities = await analyzedTask;
+            // Get counts sequentially (DbContext doesn't support concurrent operations)
+            stats.TotalVulnerabilities = await _context.Vulnerabilities.CountAsync();
+            stats.AnalyzedVulnerabilities = await _context.BioImpactScores.CountAsync();
             stats.UnanalyzedVulnerabilities = stats.TotalVulnerabilities - stats.AnalyzedVulnerabilities;
-            stats.KnownExploitedCount = await exploitedTask;
+            stats.KnownExploitedCount = await _context.Vulnerabilities.Where(v => v.KnownExploited).CountAsync();
 
             // Priority breakdown
             var priorityCounts = await _context.BioImpactScores
@@ -181,27 +175,21 @@ public class VulnerabilitiesController : ControllerBase
                 }
             }
 
-            // Recent activity - optimize with parallel queries
-            var latestTask = _context.Vulnerabilities
+            // Recent activity (sequential queries to avoid DbContext concurrency issues)
+            stats.LastIngestionTime = await _context.Vulnerabilities
                 .OrderByDescending(v => v.CreatedAt)
                 .Select(v => v.CreatedAt)
                 .FirstOrDefaultAsync();
             
             var twentyFourHoursAgo = DateTime.UtcNow.AddHours(-24);
-            var last24HoursTask = _context.Vulnerabilities
+            stats.VulnerabilitiesLast24Hours = await _context.Vulnerabilities
                 .Where(v => v.CreatedAt >= twentyFourHoursAgo)
                 .CountAsync();
 
             var sevenDaysAgo = DateTime.UtcNow.AddDays(-7);
-            var last7DaysTask = _context.Vulnerabilities
+            stats.VulnerabilitiesLast7Days = await _context.Vulnerabilities
                 .Where(v => v.CreatedAt >= sevenDaysAgo)
                 .CountAsync();
-            
-            await Task.WhenAll(latestTask, last24HoursTask, last7DaysTask);
-            
-            stats.LastIngestionTime = await latestTask;
-            stats.VulnerabilitiesLast24Hours = await last24HoursTask;
-            stats.VulnerabilitiesLast7Days = await last7DaysTask;
 
             // CVSS distribution
             var cvssDistribution = await _context.Vulnerabilities
@@ -237,8 +225,9 @@ public class VulnerabilitiesController : ControllerBase
             }
 
             // Average composite score
-            var avgScoreTask = _context.BioImpactScores.AverageAsync(b => (double?)b.CompositeScore);
-            var avgScore = await avgScoreTask;
+            var avgScore = await _context.BioImpactScores.AnyAsync()
+                ? await _context.BioImpactScores.AverageAsync(b => (double?)b.CompositeScore)
+                : null;
             stats.AverageCompositeScore = avgScore.HasValue ? (decimal)Math.Round(avgScore.Value, 2) : 0;
 
             return Ok(stats);

@@ -149,6 +149,7 @@ class DashboardApp {
             document.getElementById('exploitedCount').textContent = '--';
             document.getElementById('lastIngestion').textContent = '--';
             document.getElementById('analyzedCount').textContent = '--';
+            document.getElementById('unanalyzedCount').textContent = '--';
             return;
         }
 
@@ -163,6 +164,7 @@ class DashboardApp {
         document.getElementById('exploitedCount').textContent = stats.knownExploitedCount.toLocaleString();
         document.getElementById('lastIngestion').textContent = this.formatDate(stats.lastIngestionTime);
         document.getElementById('analyzedCount').textContent = stats.analyzedVulnerabilities.toLocaleString();
+        document.getElementById('unanalyzedCount').textContent = stats.unanalyzedVulnerabilities.toLocaleString();
     }
 
      /**

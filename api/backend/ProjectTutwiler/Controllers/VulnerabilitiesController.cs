@@ -25,7 +25,7 @@ public class VulnerabilitiesController : ControllerBase
     /// </summary>
     [HttpGet]
     public async Task<ActionResult> GetVulnerabilities(
-        [FromQuery] PriorityLevel? priorityLevel = null,
+        [FromQuery] string? priorityLevel = null,
         [FromQuery] int? daysBack = null,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 50)
@@ -40,12 +40,30 @@ public class VulnerabilitiesController : ControllerBase
                 .Include(v => v.ActionRecommendations)
                 .AsQueryable();
 
-            // Filter by priority level
-            if (priorityLevel.HasValue)
+            // Filter by priority level or unanalyzed status
+            if (!string.IsNullOrWhiteSpace(priorityLevel))
             {
-                query = query.Where(v => 
-                    v.BioImpactScore != null && 
-                    v.BioImpactScore.PriorityLevel == priorityLevel.Value);
+                var priorityUpper = priorityLevel.ToUpper().Trim();
+                if (priorityUpper == "UNANALYZED")
+                {
+                    // Filter for vulnerabilities without BioImpactScore
+                    query = query.Where(v => v.BioImpactScore == null);
+                }
+                else if (Enum.TryParse<PriorityLevel>(priorityUpper, true, out var parsedPriority))
+                {
+                    // Filter by specific priority level
+                    query = query.Where(v => 
+                        v.BioImpactScore != null && 
+                        v.BioImpactScore.PriorityLevel == parsedPriority);
+                }
+                else
+                {
+                    // Invalid priority level value - log and return empty result
+                    _logger.LogWarning("Invalid priority level filter value: {PriorityLevel}", priorityLevel);
+                    return BadRequest(new { 
+                        message = $"Invalid priority level: '{priorityLevel}'. Valid values are: CRITICAL, HIGH, MEDIUM, LOW, UNANALYZED" 
+                    });
+                }
             }
 
             // Filter by date range
@@ -80,7 +98,7 @@ public class VulnerabilitiesController : ControllerBase
                 CurrentPage = (skip / take) + 1,
                 Filters = new
                 {
-                    PriorityLevel = priorityLevel?.ToString(),
+                    PriorityLevel = priorityLevel,
                     DaysBack = daysBack
                 },
                 Data = dtoList

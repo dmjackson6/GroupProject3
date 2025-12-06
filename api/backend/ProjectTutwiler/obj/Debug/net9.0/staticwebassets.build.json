@@ -1,12 +1,1 @@
-{
-  "Version": 1,
-  "Hash": "mfhwf64l7grlh8iPyzITIQrL5TVFeHUjm7pfHBrh+FI=",
-  "Source": "ProjectTutwiler",
-  "BasePath": "_content/ProjectTutwiler",
-  "Mode": "Default",
-  "ManifestType": "Build",
-  "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": [],
-  "Endpoints": []
-}
+{"Version":1,"Hash":"mfhwf64l7grlh8iPyzITIQrL5TVFeHUjm7pfHBrh+FI=","Source":"ProjectTutwiler","BasePath":"_content/ProjectTutwiler","Mode":"Default","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}

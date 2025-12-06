@@ -124,6 +124,13 @@ class DashboardApp {
             const response = await fetch(`${this.API_BASE}/vulnerabilities/stats`);
             
             if (!response.ok) {
+                if (response.status === 503) {
+                    // Database quota exceeded - show user-friendly message
+                    const errorData = await response.json().catch(() => ({}));
+                    const message = errorData.message || 'Database query limit exceeded. Please try again in a few minutes.';
+                    this.showErrorState(message);
+                    return;
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
@@ -185,15 +192,20 @@ class DashboardApp {
                  url += `&daysBack=${this.currentFilters.daysBack}`;
              }
 
-             const response = await fetch(url);
+            const response = await fetch(url);
 
-             if (!response.ok) {
-                 // If it's a 500 error, provide more context
-                 if (response.status === 500) {
-                     throw new Error(`Server error (500). The server may be processing your request. Please try again in a moment.`);
-                 }
-                 throw new Error(`HTTP error! status: ${response.status}`);
-             }
+            if (!response.ok) {
+                // Handle specific error codes with user-friendly messages
+                if (response.status === 503) {
+                    // Database quota exceeded
+                    const errorData = await response.json().catch(() => ({}));
+                    const message = errorData.message || 'Database query limit exceeded. Please try again in a few minutes.';
+                    throw new Error(message);
+                } else if (response.status === 500) {
+                    throw new Error(`Server error (500). The server may be processing your request. Please try again in a moment.`);
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
              const result = await response.json();
              this.totalCount = result.totalCount;
